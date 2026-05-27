@@ -16,5 +16,6 @@ def aa():
 def bb():
     print("bb")
     return"bb"
+if __name__ == "__main__":
+    app.run(debug=True)
 
-app.run(debug=True)
