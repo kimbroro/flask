@@ -1,359 +1,214 @@
-<!DOCTYPE html>
-<html lang="ko">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>주말에 뭐 보지?</title>
-  <style>
-    /* ===================== 기본 리셋 & 전체 레이아웃 ===================== */
-    * { box-sizing: border-box; margin: 0; padding: 0; }
+# =====================================================
+# app.py - 넷플릭스 작품 추천 웹 서비스 (Flask 백엔드)
+# =====================================================
+# 실행 방법:
+#   1. pip install flask
+#   2. python app.py
+#   3. 브라우저에서 http://127.0.0.1:5000 접속
+# =====================================================
 
-    body {
-      background-color: #141414;   /* 넷플릭스 배경색 */
-      color: #fff;
-      font-family: 'Segoe UI', sans-serif;
-      min-height: 100vh;
-    }
+from flask import Flask, jsonify, render_template
+import random
 
-    /* ===================== 헤더 ===================== */
-    header {
-      background: linear-gradient(180deg, #000 0%, #141414 100%);
-      text-align: center;
-      padding: 50px 20px 30px;
-    }
+app = Flask(__name__)
 
-    header h1 {
-      font-size: clamp(2rem, 6vw, 4rem);  /* 반응형 폰트 크기 */
-      color: #E50914;                      /* 넷플릭스 빨간색 */
-      letter-spacing: 2px;
-      text-shadow: 0 0 20px rgba(229,9,20,0.5);
-      margin-bottom: 10px;
-    }
+# -------------------------------------------------------
+# 더미 데이터: 넷플릭스 인기 작품 20개
+# 각 항목: 제목, 장르, 평점(10점), 포스터 URL, 줄거리, 넷플릭스 링크
+# -------------------------------------------------------
+MOVIES = [
+    {
+        "title": "오징어 게임",
+        "genre": "스릴러/드라마",
+        "rating": 9.2,
+        "poster": "https://images.unsplash.com/photo-1626814026160-2237a95fc5a0?w=400&h=600&fit=crop",
+        "synopsis": "456억 원의 상금을 걸고 목숨을 건 서바이벌 게임에 참가한 사람들의 이야기.",
+        "link": "https://www.netflix.com/title/81040344"
+    },
+    {
+        "title": "기생충",
+        "genre": "블랙코미디/드라마",
+        "rating": 9.5,
+        "poster": "https://images.unsplash.com/photo-1536440136628-849c177e76a1?w=400&h=600&fit=crop",
+        "synopsis": "전원 백수인 기택네 가족이 부유한 박 사장 가족에게 기생하며 벌어지는 사건.",
+        "link": "https://www.netflix.com/title/81243606"
+    },
+    {
+        "title": "더 글로리",
+        "genre": "복수/드라마",
+        "rating": 8.8,
+        "poster": "https://images.unsplash.com/photo-1509347528160-9a9e33742cdb?w=400&h=600&fit=crop",
+        "synopsis": "학창 시절 폭력 피해자가 완벽한 복수를 위해 인생 전체를 건 이야기.",
+        "link": "https://www.netflix.com/title/81425066"
+    },
+    {
+        "title": "나르코스",
+        "genre": "범죄/실화",
+        "rating": 8.8,
+        "poster": "https://images.unsplash.com/photo-1612036782180-6f0b6cd846fe?w=400&h=600&fit=crop",
+        "synopsis": "콜롬비아 마약왕 파블로 에스코바르의 흥망성쇠를 다룬 실화 기반 드라마.",
+        "link": "https://www.netflix.com/title/80025172"
+    },
+    {
+        "title": "기묘한 이야기",
+        "genre": "SF/공포",
+        "rating": 8.7,
+        "poster": "https://images.unsplash.com/photo-1518770660439-4636190af475?w=400&h=600&fit=crop",
+        "synopsis": "소년이 사라진 작은 마을에서 초자연적 현상과 맞닥뜨리는 아이들의 이야기.",
+        "link": "https://www.netflix.com/title/80057281"
+    },
+    {
+        "title": "종이의 집",
+        "genre": "범죄/액션",
+        "rating": 8.6,
+        "poster": "https://images.unsplash.com/photo-1554224155-6726b3ff858f?w=400&h=600&fit=crop",
+        "synopsis": "교수라 불리는 천재 범죄자가 이끄는 강도단의 완벽한 조폐국 침입 작전.",
+        "link": "https://www.netflix.com/title/80192098"
+    },
+    {
+        "title": "위처",
+        "genre": "판타지/액션",
+        "rating": 8.2,
+        "poster": "https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=400&h=600&fit=crop",
+        "synopsis": "괴물 사냥꾼 게롤트가 운명으로 얽힌 공주와 마법사와 함께하는 모험.",
+        "link": "https://www.netflix.com/title/80189685"
+    },
+    {
+        "title": "브리저튼",
+        "genre": "로맨스/드라마",
+        "rating": 7.9,
+        "poster": "https://images.unsplash.com/photo-1516589178581-6cd7833ae3b2?w=400&h=600&fit=crop",
+        "synopsis": "19세기 런던 사교계를 배경으로 펼쳐지는 화려하고 달콤한 로맨스.",
+        "link": "https://www.netflix.com/title/80232398"
+    },
+    {
+        "title": "블랙 미러",
+        "genre": "SF/디스토피아",
+        "rating": 8.5,
+        "poster": "https://images.unsplash.com/photo-1518770660439-4636190af475?w=400&h=600&fit=crop",
+        "synopsis": "기술이 지배하는 미래 사회의 어두운 단면을 그린 앤솔로지 드라마.",
+        "link": "https://www.netflix.com/title/70264888"
+    },
+    {
+        "title": "오자크",
+        "genre": "범죄/스릴러",
+        "rating": 8.5,
+        "poster": "https://images.unsplash.com/photo-1551434678-e076c223a692?w=400&h=600&fit=crop",
+        "synopsis": "마약 카르텔에 빚진 가족이 호수 마을로 도망쳐 돈세탁을 벌이는 이야기.",
+        "link": "https://www.netflix.com/title/80117552"
+    },
+    {
+        "title": "킹덤",
+        "genre": "좀비/역사",
+        "rating": 8.4,
+        "poster": "https://images.unsplash.com/photo-1508739773434-c26b3d09e071?w=400&h=600&fit=crop",
+        "synopsis": "조선 시대를 배경으로 의문의 역병과 권력 암투에 맞서는 세자의 사투.",
+        "link": "https://www.netflix.com/title/80180171"
+    },
+    {
+        "title": "셜록",
+        "genre": "미스터리/추리",
+        "rating": 9.1,
+        "poster": "https://images.unsplash.com/photo-1481627834876-b7833e8f5570?w=400&h=600&fit=crop",
+        "synopsis": "현대 런던을 배경으로 천재 탐정 셜록 홈즈와 왓슨의 사건 해결기.",
+        "link": "https://www.netflix.com/title/70202589"
+    },
+    {
+        "title": "마인드헌터",
+        "genre": "범죄/스릴러",
+        "rating": 8.9,
+        "poster": "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=600&fit=crop",
+        "synopsis": "FBI 요원들이 연쇄살인마 심리를 분석하며 범죄 프로파일링을 개척하는 이야기.",
+        "link": "https://www.netflix.com/title/80232911"
+    },
+    {
+        "title": "에밀리, 파리에 가다",
+        "genre": "로맨스/코미디",
+        "rating": 7.3,
+        "poster": "https://images.unsplash.com/photo-1502602898657-3e91760cbb34?w=400&h=600&fit=crop",
+        "synopsis": "시카고 마케터 에밀리가 파리로 발령나 겪는 문화 충돌과 로맨스.",
+        "link": "https://www.netflix.com/title/81037371"
+    },
+    {
+        "title": "수리남",
+        "genre": "범죄/액션",
+        "rating": 7.8,
+        "poster": "https://images.unsplash.com/photo-1511367461989-f85a21fda167?w=400&h=600&fit=crop",
+        "synopsis": "수리남을 장악한 마약 대부를 잡기 위해 일반인이 국정원 작전에 투입된다.",
+        "link": "https://www.netflix.com/title/81166782"
+    },
+    {
+        "title": "지옥",
+        "genre": "공포/SF",
+        "rating": 7.6,
+        "poster": "https://images.unsplash.com/photo-1519638831568-d9897f54ed69?w=400&h=600&fit=crop",
+        "synopsis": "갑작스러운 지옥행 선고와 괴물 출현으로 혼란에 빠진 세상을 그린 이야기.",
+        "link": "https://www.netflix.com/title/81441081"
+    },
+    {
+        "title": "D.P.",
+        "genre": "군대/드라마",
+        "rating": 8.3,
+        "poster": "https://images.unsplash.com/photo-1534367610401-9f5ed68180aa?w=400&h=600&fit=crop",
+        "synopsis": "탈영병을 잡는 군무이탈체포조 DP 요원들이 마주하는 현실과 인간 군상.",
+        "link": "https://www.netflix.com/title/81280917"
+    },
+    {
+        "title": "소년심판",
+        "genre": "법정/드라마",
+        "rating": 8.1,
+        "poster": "https://images.unsplash.com/photo-1589829545856-d10d557cf95f?w=400&h=600&fit=crop",
+        "synopsis": "소년범을 혐오하는 판사가 소년부에 부임하며 마주하는 청소년 범죄의 현실.",
+        "link": "https://www.netflix.com/title/81500416"
+    },
+    {
+        "title": "나의 해방일지",
+        "genre": "힐링/드라마",
+        "rating": 8.6,
+        "poster": "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?w=400&h=600&fit=crop",
+        "synopsis": "답답한 일상에서 해방되고 싶은 세 남매와 미스터리한 남자의 잔잔한 이야기.",
+        "link": "https://www.netflix.com/title/81518709"
+    },
+    {
+        "title": "이상한 변호사 우영우",
+        "genre": "법정/드라마",
+        "rating": 8.7,
+        "poster": "https://images.unsplash.com/photo-1436450412740-6b988f486c6b?w=400&h=600&fit=crop",
+        "synopsis": "자폐 스펙트럼을 가진 천재 변호사 우영우의 유쾌하고 따뜻한 성장 이야기.",
+        "link": "https://www.netflix.com/title/81518991"
+    },
+]
 
-    header p {
-      color: #aaa;
-      font-size: 1rem;
-      margin-bottom: 30px;
-    }
 
-    /* ===================== 버튼 영역 ===================== */
-    .btn-area {
-      display: flex;
-      justify-content: center;
-      gap: 20px;
-      flex-wrap: wrap;
-      margin-bottom: 10px;
-    }
+# -------------------------------------------------------
+# 라우트 1: 메인 페이지 렌더링
+# -------------------------------------------------------
+@app.route('/')
+def index():
+    return render_template('index.html')
 
-    .btn {
-      padding: 14px 32px;
-      font-size: 1rem;
-      font-weight: bold;
-      border: none;
-      border-radius: 6px;
-      cursor: pointer;
-      transition: transform 0.2s, box-shadow 0.2s;
-    }
 
-    .btn:hover {
-      transform: scale(1.05);
-      box-shadow: 0 6px 20px rgba(229,9,20,0.4);
-    }
+# -------------------------------------------------------
+# 라우트 2: 평점 높은 순으로 정렬된 작품 목록 반환 (JSON)
+# -------------------------------------------------------
+@app.route('/api/sorted')
+def get_sorted():
+    # rating 기준 내림차순 정렬
+    sorted_movies = sorted(MOVIES, key=lambda x: x['rating'], reverse=True)
+    return jsonify(sorted_movies)
 
-    /* 버튼 1: 평점순 정렬 */
-    .btn-sort {
-      background-color: #E50914;
-      color: #fff;
-    }
 
-    /* 버튼 2: 랜덤 추천 */
-    .btn-random {
-      background-color: #fff;
-      color: #141414;
-    }
+# -------------------------------------------------------
+# 라우트 3: 랜덤 작품 1개 반환 (JSON)
+# -------------------------------------------------------
+@app.route('/api/random')
+def get_random():
+    pick = random.choice(MOVIES)
+    return jsonify(pick)
 
-    /* ===================== 카드 그리드 ===================== */
-    #card-container {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-      gap: 20px;
-      padding: 30px 40px;
-      max-width: 1400px;
-      margin: 0 auto;
-    }
 
-    /* 개별 카드 */
-    .card {
-      background-color: #1f1f1f;
-      border-radius: 8px;
-      overflow: hidden;
-      transition: transform 0.3s, box-shadow 0.3s;
-      cursor: pointer;
-    }
-
-    .card:hover {
-      transform: translateY(-8px) scale(1.02);
-      box-shadow: 0 12px 30px rgba(229,9,20,0.3);
-    }
-
-    .card img {
-      width: 100%;
-      height: 280px;
-      object-fit: cover;
-      display: block;
-    }
-
-    .card-info {
-      padding: 12px;
-    }
-
-    .card-title {
-      font-size: 0.95rem;
-      font-weight: bold;
-      margin-bottom: 5px;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-
-    .card-genre {
-      font-size: 0.78rem;
-      color: #aaa;
-      margin-bottom: 6px;
-    }
-
-    .card-rating {
-      font-size: 0.85rem;
-      color: #E50914;
-      font-weight: bold;
-    }
-
-    .card-synopsis {
-      font-size: 0.75rem;
-      color: #bbb;
-      margin-top: 6px;
-      line-height: 1.4;
-      display: -webkit-box;
-      -webkit-line-clamp: 2;       /* 2줄로 자르기 */
-      -webkit-box-orient: vertical;
-      overflow: hidden;
-    }
-
-    .card-link {
-      display: inline-block;
-      margin-top: 10px;
-      font-size: 0.75rem;
-      color: #E50914;
-      text-decoration: none;
-    }
-
-    .card-link:hover { text-decoration: underline; }
-
-    /* ===================== 랜덤 추천 모달 ===================== */
-    #modal-overlay {
-      display: none;              /* 기본은 숨김 */
-      position: fixed;
-      inset: 0;                   /* top/right/bottom/left 모두 0 */
-      background: rgba(0,0,0,0.85);
-      z-index: 1000;
-      justify-content: center;
-      align-items: center;
-      animation: fadeIn 0.3s ease;
-    }
-
-    /* display:none -> flex 로 바꿀 때 쓸 클래스 */
-    #modal-overlay.active { display: flex; }
-
-    @keyframes fadeIn {
-      from { opacity: 0; }
-      to   { opacity: 1; }
-    }
-
-    #modal-box {
-      background: #1f1f1f;
-      border: 2px solid #E50914;
-      border-radius: 12px;
-      padding: 30px;
-      max-width: 420px;
-      width: 90%;
-      text-align: center;
-      position: relative;
-      animation: popUp 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-    }
-
-    @keyframes popUp {
-      from { transform: scale(0.5); opacity: 0; }
-      to   { transform: scale(1);   opacity: 1; }
-    }
-
-    #modal-box img {
-      width: 100%;
-      max-height: 300px;
-      object-fit: cover;
-      border-radius: 8px;
-      margin-bottom: 16px;
-    }
-
-    #modal-box h2 {
-      font-size: 1.5rem;
-      color: #E50914;
-      margin-bottom: 8px;
-    }
-
-    #modal-box .modal-genre  { color: #aaa; font-size: 0.9rem; margin-bottom: 6px; }
-    #modal-box .modal-rating { color: #fff; font-size: 1rem; margin-bottom: 12px; }
-    #modal-box .modal-synopsis { color: #ccc; font-size: 0.88rem; line-height: 1.5; margin-bottom: 16px; }
-
-    #modal-box .modal-link {
-      display: inline-block;
-      background: #E50914;
-      color: #fff;
-      padding: 10px 24px;
-      border-radius: 6px;
-      text-decoration: none;
-      font-weight: bold;
-      font-size: 0.9rem;
-      margin-bottom: 12px;
-    }
-
-    /* 닫기 버튼 */
-    #modal-close {
-      position: absolute;
-      top: 12px;
-      right: 16px;
-      font-size: 1.5rem;
-      background: none;
-      border: none;
-      color: #aaa;
-      cursor: pointer;
-    }
-    #modal-close:hover { color: #fff; }
-
-    /* ===================== 반짝이는 타이틀 효과 (랜덤 결과) ===================== */
-    #modal-box h2.flash {
-      animation: flash 0.6s ease 3;
-    }
-    @keyframes flash {
-      0%, 100% { color: #E50914; }
-      50%       { color: #ffcc00; text-shadow: 0 0 20px #ffcc00; }
-    }
-
-    /* ===================== 안내 텍스트 ===================== */
-    #hint {
-      text-align: center;
-      color: #555;
-      font-size: 0.9rem;
-      padding: 20px;
-    }
-  </style>
-</head>
-<body>
-
-  <!-- ====== 헤더 ====== -->
-  <header>
-    <h1>🎬 주말에 뭐 보지?</h1>
-    <p>넷플릭스 인기 작품 20선 · 오늘 저녁을 책임집니다</p>
-    <div class="btn-area">
-      <!-- 버튼 1: 평점 높은 순 정렬 -->
-      <button class="btn btn-sort" onclick="loadSorted()">⭐ 평점 높은 순 정렬</button>
-      <!-- 버튼 2: 랜덤 추천 -->
-      <button class="btn btn-random" onclick="loadRandom()">🎲 뭐 볼지 랜덤 추천!</button>
-    </div>
-  </header>
-
-  <!-- ====== 안내 텍스트 ====== -->
-  <p id="hint">위 버튼을 눌러 작품을 확인하세요!</p>
-
-  <!-- ====== 카드 목록 ====== -->
-  <div id="card-container"></div>
-
-  <!-- ====== 랜덤 추천 모달 ====== -->
-  <div id="modal-overlay" onclick="closeModal(event)">
-    <div id="modal-box">
-      <button id="modal-close" onclick="closeModal(null)">✕</button>
-      <img id="modal-img" src="" alt="포스터" />
-      <h2 id="modal-title"></h2>
-      <p class="modal-genre"  id="modal-genre"></p>
-      <p class="modal-rating" id="modal-rating"></p>
-      <p class="modal-synopsis" id="modal-synopsis"></p>
-      <a id="modal-link" href="#" target="_blank" class="modal-link">▶ 넷플릭스에서 보기</a>
-    </div>
-  </div>
-
-  <script>
-    // ===================================================
-    // 카드 HTML 생성 함수
-    // movie: 작품 데이터 객체 하나
-    // ===================================================
-    function createCard(movie) {
-      return `
-        <div class="card">
-          <img src="${movie.poster}" alt="${movie.title} 포스터"
-               onerror="this.src='https://via.placeholder.com/400x600/1f1f1f/E50914?text=No+Image'"/>
-          <div class="card-info">
-            <div class="card-title">${movie.title}</div>
-            <div class="card-genre">${movie.genre}</div>
-            <div class="card-rating">⭐ ${movie.rating} / 10</div>
-            <div class="card-synopsis">${movie.synopsis}</div>
-            <a class="card-link" href="${movie.link}" target="_blank">▶ 넷플릭스에서 보기</a>
-          </div>
-        </div>
-      `;
-    }
-
-    // ===================================================
-    // 버튼 1: 평점 높은 순 정렬
-    // Flask /api/sorted 엔드포인트에 GET 요청
-    // ===================================================
-    function loadSorted() {
-      document.getElementById('hint').style.display = 'none';
-
-      fetch('/api/sorted')
-        .then(res => res.json())          // JSON 파싱
-        .then(movies => {
-          const container = document.getElementById('card-container');
-          // 카드를 모두 지우고 다시 그리기
-          container.innerHTML = movies.map(createCard).join('');
-        })
-        .catch(err => alert('데이터를 불러오지 못했습니다: ' + err));
-    }
-
-    // ===================================================
-    // 버튼 2: 랜덤 추천
-    // Flask /api/random 엔드포인트에 GET 요청
-    // ===================================================
-    function loadRandom() {
-      fetch('/api/random')
-        .then(res => res.json())
-        .then(movie => {
-          // 모달에 데이터 채우기
-          document.getElementById('modal-img').src      = movie.poster;
-          document.getElementById('modal-title').textContent    = '🎉 ' + movie.title;
-          document.getElementById('modal-genre').textContent    = movie.genre;
-          document.getElementById('modal-rating').textContent   = '⭐ ' + movie.rating + ' / 10';
-          document.getElementById('modal-synopsis').textContent = movie.synopsis;
-          document.getElementById('modal-link').href             = movie.link;
-
-          // 모달 표시
-          document.getElementById('modal-overlay').classList.add('active');
-
-          // 제목 반짝 효과
-          const title = document.getElementById('modal-title');
-          title.classList.remove('flash');
-          void title.offsetWidth;   // 리플로우로 애니메이션 재시작
-          title.classList.add('flash');
-        })
-        .catch(err => alert('데이터를 불러오지 못했습니다: ' + err));
-    }
-
-    // ===================================================
-    // 모달 닫기
-    // event가 있으면 배경(overlay) 클릭인지 확인
-    // ===================================================
-    function closeModal(event) {
-      if (event && event.target !== document.getElementById('modal-overlay')) return;
-      document.getElementById('modal-overlay').classList.remove('active');
-    }
-  </script>
-</body>
-</html>
+# -------------------------------------------------------
+# 앱 실행
+# -------------------------------------------------------
+if __name__ == '__main__':
+    app.run(debug=True)
